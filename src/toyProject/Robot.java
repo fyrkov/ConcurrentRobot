@@ -1,27 +1,26 @@
 package toyProject;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 /**
  * Created by anch0317 on 03.03.2017.
  */
 public class Robot {
 
+    private volatile double distance;
+    private AtomicReference<Double> distance2 = new AtomicReference<>();
+    private int legs;
 
+    double getDistance() {
+        return distance;
+    }
     synchronized void decrementDistance(double decrement) {
         this.distance -= decrement;
-    }
-
-    private volatile double distance;
-    private int legs;
-    private Thread steps[];
-
-    synchronized double getDistance() {
-        return distance;
     }
 
     public Robot(int legsQuantity, double distance) {
         legs = legsQuantity;
         this.distance = distance;
-        steps = new Step[legsQuantity];
 
     }
 
@@ -30,7 +29,7 @@ public class Robot {
         while (getDistance() > 0) {
             for (int i = 0; i < legs; i++) {
                 Step s = new Step(i + 1);
-                if (getDistance() > 0) s.start();
+                s.start();
                 try {
                     s.join();
                 } catch (InterruptedException e) {
@@ -57,7 +56,7 @@ public class Robot {
             decrementDistance(Math.random() + 0.5);
             System.out.println("Robot moved with leg " + legNumber + ", distance is " + getDistance());
             try {
-                sleep((long) ((Math.random() * 500)));
+                sleep((long) ((Math.random() * 200)));
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
