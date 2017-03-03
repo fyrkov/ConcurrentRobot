@@ -4,10 +4,14 @@ public class Main {
 
     public static void main(String[] args) {
 	// write your code here
-        Robot r = new Robot(4, 11.);
+        Robot2 r = new Robot2(3, 123.);
         r.startMoving();
 
+        Thread t = new Thread(new InputRunner(r));
+        t.start();
 
-        System.out.println(r.getDistance());
+        System.out.println("finished in "+r.getStepCounter()+" steps");
+
+
     }
 }

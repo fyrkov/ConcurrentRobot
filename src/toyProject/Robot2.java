@@ -1,12 +1,13 @@
 package toyProject;
 
 
+import java.io.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by anch0317 on 03.03.2017.
  */
-public class Robot {
+public class Robot2 {
 
     private volatile double distance;
     private AtomicInteger stepCounter;
@@ -18,8 +19,11 @@ public class Robot {
     synchronized void decrementDistance(double decrement) {
         this.distance -= decrement;
     }
+    public void setLegs(int legs) {
+        this.legs = legs;
+    }
 
-    public Robot(int legsQuantity, double distance) {
+    public Robot2(int legsQuantity, double distance) {
         legs = legsQuantity;
         this.distance = distance;
         stepCounter = new AtomicInteger(0);
@@ -55,7 +59,8 @@ public class Robot {
 //            distance -= (Math.random() + 0.5);
             decrementDistance(Math.random() + 0.5);
             stepCounter.incrementAndGet();
-            System.out.println("Robot moved with leg " + legNumber + ", step " + stepCounter.get());
+//            System.out.println("Robot moved with leg " + legNumber + ", step " + stepCounter.get());
+
             try {
                 sleep((long) ((Math.random() * 200)));
             } catch (InterruptedException e) {
@@ -64,6 +69,15 @@ public class Robot {
 
 
         }
+    }
+
+    void write() {
+
+        File file = new File("example.txt");
+//        try (Writer writer = new BufferedWriter(new OutputStreamWriter(
+//                new FileOutputStream("filename.txt"), "utf-8"))) {
+//            writer.write("something");
+//        }
     }
 }
 
