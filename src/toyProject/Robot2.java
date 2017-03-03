@@ -1,43 +1,48 @@
 package toyProject;
 
+import java.util.LinkedList;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+
 /**
  * Created by anch0317 on 03.03.2017.
  */
-public class Robot {
-
-
-    synchronized void decrementDistance(double decrement) {
-        this.distance -= decrement;
-    }
+public class Robot2 {
 
     private volatile double distance;
     private int legs;
-    private Thread steps[];
+    private Step steps[];
+    private Queue<Step> q = new LinkedList<>();
 
     synchronized double getDistance() {
         return distance;
     }
 
-    public Robot(int legsQuantity, double distance) {
+    synchronized void decrementDistance(double decrement) {
+        this.distance -= decrement;
+    }
+
+
+    public Robot2(int legsQuantity, double distance) {
         legs = legsQuantity;
         this.distance = distance;
         steps = new Step[legsQuantity];
+        for (int i = 0; i < legsQuantity; i++) {
+            q.add(new Step(i+1));
+        }
 
     }
 
     public void startMoving() {
 
         while (getDistance() > 0) {
-            for (int i = 0; i < legs; i++) {
-                Step s = new Step(i + 1);
-                if (getDistance() > 0) s.start();
-                try {
-                    s.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                if (getDistance() <= 0) break;
-            }
+            Step s = q.poll();
+            if (!s.isAlive()) s.start();
+            synchronized (this) {notify();}
+            q.add(s);
         }
 
     }
@@ -53,7 +58,6 @@ public class Robot {
 
         @Override
         public void run() {
-//            distance -= (Math.random() + 0.5);
             decrementDistance(Math.random() + 0.5);
             System.out.println("Robot moved with leg " + legNumber + ", distance is " + getDistance());
             try {
@@ -61,7 +65,11 @@ public class Robot {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
+            try {
+                wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
 
         }
     }
