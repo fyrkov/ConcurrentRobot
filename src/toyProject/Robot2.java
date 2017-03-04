@@ -2,6 +2,7 @@ package toyProject;
 
 
 import java.io.*;
+import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -16,9 +17,11 @@ public class Robot2 {
     int getStepCounter() {
         return stepCounter.get();
     }
+
     synchronized void decrementDistance(double decrement) {
         this.distance -= decrement;
     }
+
     public void setLegs(int legs) {
         this.legs = legs;
     }
@@ -27,6 +30,7 @@ public class Robot2 {
         legs = legsQuantity;
         this.distance = distance;
         stepCounter = new AtomicInteger(0);
+        cleanFile();
     }
 
     public void startMoving() {
@@ -50,6 +54,7 @@ public class Robot2 {
     class Step extends Thread {
 
         private int legNumber;
+
         Step(int legNumber) {
             this.legNumber = legNumber;
         }
@@ -60,26 +65,34 @@ public class Robot2 {
             decrementDistance(Math.random() + 0.5);
             stepCounter.incrementAndGet();
 //            System.out.println("Robot moved with leg " + legNumber + ", step " + stepCounter.get());
-
+            write("Robot moved with leg " + legNumber + ", step " + stepCounter.get()+"\n");
             try {
-                sleep((long) ((Math.random() * 200)));
+                sleep((long) ((Math.random() * 700)));
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
-
         }
     }
 
-    void write() {
+    void write(String s) {
+        try  (PrintWriter writer = new PrintWriter(
+                new FileWriter("out.txt", true))){
+            writer.write(s);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
-        File file = new File("example.txt");
-//        try (Writer writer = new BufferedWriter(new OutputStreamWriter(
-//                new FileOutputStream("filename.txt"), "utf-8"))) {
-//            writer.write("something");
-//        }
+    void cleanFile() {
+        try  (PrintWriter writer = new PrintWriter(
+                new FileWriter("out.txt"))){
+            writer.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
+
 
 
 
