@@ -1,7 +1,7 @@
 package toyProject;
 
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.io.*;
 
 /**
  * Created by anch0317 on 03.03.2017.
@@ -9,23 +9,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Robot {
 
     private volatile double distance;
-    private AtomicInteger stepCounter;
+    private int stepCounter;
     private int legs;
-
-    int getStepCounter() {
-        return stepCounter.get();
-    }
-    synchronized void decrementDistance(double decrement) {
-        this.distance -= decrement;
-    }
 
     public Robot(int legsQuantity, double distance) {
         legs = legsQuantity;
         this.distance = distance;
-        stepCounter = new AtomicInteger(0);
+        cleanFile();
     }
 
-    public void startMoving() {
+    int getStepCounter() {
+        return stepCounter;
+    }
+
+    void setLegs(int legs) {
+        this.legs = legs;
+    }
+
+    void startMoving() {
 
         while (distance > 0) {
             for (int i = 0; i < legs; i++) {
@@ -39,33 +40,45 @@ public class Robot {
                 if (distance <= 0) break;
             }
         }
-
     }
 
 
     class Step extends Thread {
 
         private int legNumber;
+
         Step(int legNumber) {
             this.legNumber = legNumber;
         }
 
         @Override
         public void run() {
-//            distance -= (Math.random() + 0.5);
-            decrementDistance(Math.random() + 0.5);
-            stepCounter.incrementAndGet();
-            System.out.println("Robot moved with leg " + legNumber + ", step " + stepCounter.get());
-            try {
-                sleep((long) ((Math.random() * 200)));
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            distance -= (Math.random() + 0.5);
+            stepCounter++;
+            System.out.println("Robot moved with leg " + legNumber + ", step " + stepCounter + ", distance is: " + distance);
+//            write("Robot moved with leg " + legNumber + ", step " + stepCounter+"\n");
+        }
+    }
 
+    void write(String s) {
+        try (PrintWriter writer = new PrintWriter(
+                new FileWriter("out.txt", true))) {
+            writer.write(s);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
+    void cleanFile() {
+        try (PrintWriter writer = new PrintWriter(
+                new FileWriter("out.txt"))) {
+            writer.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }
+
 
 
 

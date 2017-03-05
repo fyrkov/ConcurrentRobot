@@ -1,12 +1,12 @@
 package toyProject;
 
-public class Main {
+public class Main2 {
 
     public static void main(String[] args) {
 
-        Robot r = new Robot(3, 14.);
+        Robot2 r = new Robot2(3, 14.1);
 
-        Thread input = new InputRunner(r);
+        Thread input = new InputRunner2(r);
         input.setDaemon(true);
         input.start();
 

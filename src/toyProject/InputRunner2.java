@@ -7,11 +7,11 @@ import java.io.InputStreamReader;
 /**
  * Created by anch0317 on 03.03.2017.
  */
-public class InputRunner extends Thread {
+public class InputRunner2 extends Thread {
 
-    Robot r;
+    Robot2 r;
 
-    InputRunner(Robot r) {
+    InputRunner2(Robot2 r) {
         this.r = r;
     }
 
