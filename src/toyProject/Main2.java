@@ -4,9 +4,9 @@ public class Main2 {
 
     public static void main(String[] args) {
 
-        Robot2 r = new Robot2(3, 14.1);
+        Robot2 r = new Robot2(3, 914.1);
 
-        Thread input = new InputRunner2(r);
+        Thread input = new InputRunner(r);
         input.setDaemon(true);
         input.start();
 

@@ -6,11 +6,11 @@ import java.io.*;
 /**
  * Created by anch0317 on 03.03.2017.
  */
-public class Robot {
+public class Robot implements IRobot{
 
     private volatile double distance;
     private int stepCounter;
-    private int legs;
+    private volatile int legs;
 
     public Robot(int legsQuantity, double distance) {
         legs = legsQuantity;
@@ -22,7 +22,7 @@ public class Robot {
         return stepCounter;
     }
 
-    void setLegs(int legs) {
+    public void setLegs(int legs) {
         this.legs = legs;
     }
 

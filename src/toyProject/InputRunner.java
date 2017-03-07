@@ -9,9 +9,9 @@ import java.io.InputStreamReader;
  */
 public class InputRunner extends Thread {
 
-    Robot r;
+    IRobot r;
 
-    InputRunner(Robot r) {
+    InputRunner(IRobot r) {
         this.r = r;
     }
 

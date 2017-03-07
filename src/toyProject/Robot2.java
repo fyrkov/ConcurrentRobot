@@ -4,22 +4,31 @@ package toyProject;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by anch0317 on 03.03.2017.
  */
-public class Robot2 {
+public class Robot2 implements IRobot {
 
-    private AtomicBoolean condition[];
+    private List<AtomicBoolean> condition;
     private volatile double distance;
     private volatile int stepCounter;
-    private int legs;
+    private volatile int legs;
+    private volatile List<Thread> s;
+    private AtomicBoolean legSetFlag = new AtomicBoolean();
 
     public Robot2(int legsQuantity, double distance) {
         legs = legsQuantity;
         this.distance = distance;
-        condition = new AtomicBoolean[legsQuantity];
+        condition = new ArrayList<>();
+        s = new ArrayList<>();
+        for (int i = 0; i < legs; i++) {
+            s.add(i, new Step(i));
+            condition.add(i, new AtomicBoolean());
+        }
         cleanFile();
     }
 
@@ -28,42 +37,72 @@ public class Robot2 {
     }
 
     //TODO legs addition
-    void setLegs(int legs) {
-        this.legs = legs;
+    public void setLegs(int legs) {
+        legSetFlag.set(true);
+        synchronized (this) {
+            System.out.println("Setter works");
+            int delta = legs - this.legs;
+            if (delta > 0) {
+                for (int i = this.legs; i < legs; i++) {
+                    s.add(i, new Step(i));
+                    if (condition.size() > i) condition.set(i, new AtomicBoolean());
+                    else condition.add(i, new AtomicBoolean());
+                    s.get(i).setDaemon(true);
+                    s.get(i).start();
+                }
+            } else if (delta < 0) {
+                for (int i = this.legs - 1; i >= legs; i--) {
+                    s.get(i).interrupt();
+                    s.remove(i);
+                }
+            }
+            this.legs = legs;
+            legSetFlag.set(false);
+            try {
+                //timeout for proper step threads interruption, may be changed to check loop before leaving sync block
+                Thread.sleep(20);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            notify();
+            System.out.println("Setter released the lock");
+        }
     }
 
     void startMoving() {
 
-        Thread s[] = new Step[legs];
         for (int i = 0; i < legs; i++) {
-            condition[i] = new AtomicBoolean();
-            s[i] = new Step(i);
-            s[i].setDaemon(true);
-            s[i].start();
+            s.get(i).setDaemon(true);
+            s.get(i).start();
         }
 
-        while (distance > 0) {
-            for (int i = 0; i < legs; i++) {
-                synchronized (s[i]) {
-                    condition[i].set(true);
-                    s[i].notify();
-//                    System.out.println("Main thread reports");
-                    while (condition[i].get()) {
-                        try {
-                            s[i].wait();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+        synchronized (this) {
+            while (distance > 0) {
+                for (int i = 0; i < legs; i++) {
+                    synchronized (s.get(i)) {
+                        condition.get(i).set(true);
+                        s.get(i).notify();
+                        while (condition.get(i).get()) {
+                            try {
+                                s.get(i).wait();
+                            } catch (InterruptedException e) {
+                            }
                         }
+                        if (distance <= 0) break;
                     }
-                    if (distance <= 0) break;
+                    if (legSetFlag.get()) try {
+                        wait();
+                    } catch (InterruptedException e) {
+                    }
                 }
             }
         }
     }
 
     void write(String s) {
-        try (PrintWriter writer = new PrintWriter(
-                new FileWriter("out.txt", true))) {
+
+        //TODO freezes when increasing legs number
+        try (FileWriter writer = new FileWriter("out.txt", true)) {
             writer.write(s);
         } catch (IOException e) {
             e.printStackTrace();
@@ -90,20 +129,21 @@ public class Robot2 {
         @Override
         public void run() {
             while (true) {
-                while (condition[legNumber].get()) {
+                while (condition.get(legNumber).get()) {
                     synchronized (this) {
                         distance -= (Math.random() + 0.5);
                         stepCounter++;
-                        condition[legNumber].set(false);
-//                        System.out.println("Robot moved with leg " + (legNumber + 1) + ", step " + stepCounter + ", distance is: " + distance);
-                        write("Robot moved with leg " + (legNumber+1) + ", step " + stepCounter+", distance is: " + distance+"\n");
+                        condition.get(legNumber).set(false);
+                        String s = "Robot moved with leg " + (legNumber + 1) + ", step " + stepCounter + ", distance is: " + distance + "\n";
+                        System.out.print(s);
+                        write(s);
                         notify();
-                        while (!condition[legNumber].get()) {
+                        while (!condition.get(legNumber).get()) {
                             try {
-                                sleep(250);
+                                sleep(1000);
                                 wait();
                             } catch (InterruptedException e) {
-                                e.printStackTrace();
+                                System.out.println("Leg task " + (legNumber + 1) + " cancelled");
                             }
                         }
                     }
