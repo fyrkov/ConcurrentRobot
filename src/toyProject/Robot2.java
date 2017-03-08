@@ -1,120 +1,107 @@
 package toyProject;
 
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
+/** Wait()-Notify() implementation
  * Created by anch0317 on 03.03.2017.
  */
+
 public class Robot2 implements IRobot {
 
-    private List<AtomicBoolean> condition;
+    private List<AtomicBoolean> stepFlag;
     private volatile double distance;
     private volatile int stepCounter;
     private volatile int legs;
-    private volatile List<Thread> s;
-    private AtomicBoolean legSetFlag = new AtomicBoolean();
+    private volatile List<Thread> step;
+    private AtomicBoolean legsChangeFlag = new AtomicBoolean();
+    private volatile boolean isInterrupted;
 
     public Robot2(int legsQuantity, double distance) {
+        GUI.robotIsRunning = true;
         legs = legsQuantity;
         this.distance = distance;
-        condition = new ArrayList<>();
-        s = new ArrayList<>();
+        stepFlag = new ArrayList<>();
+        step = new ArrayList<>();
         for (int i = 0; i < legs; i++) {
-            s.add(i, new Step(i));
-            condition.add(i, new AtomicBoolean());
+            step.add(i, new Step(i));
+            stepFlag.add(i, new AtomicBoolean());
         }
-        cleanFile();
     }
 
     int getStepCounter() {
         return stepCounter;
     }
 
-    //TODO legs addition
     public void setLegs(int legs) {
-        legSetFlag.set(true);
+        legsChangeFlag.set(true);
         synchronized (this) {
-            System.out.println("Setter works");
+            System.out.println("LegSetter works");
             int delta = legs - this.legs;
             if (delta > 0) {
                 for (int i = this.legs; i < legs; i++) {
-                    s.add(i, new Step(i));
-                    if (condition.size() > i) condition.set(i, new AtomicBoolean());
-                    else condition.add(i, new AtomicBoolean());
-                    s.get(i).setDaemon(true);
-                    s.get(i).start();
+                    step.add(i, new Step(i));
+                    if (stepFlag.size() > i) stepFlag.set(i, new AtomicBoolean());
+                    else stepFlag.add(i, new AtomicBoolean());
+                    step.get(i).setDaemon(true);
+                    step.get(i).start();
                 }
             } else if (delta < 0) {
                 for (int i = this.legs - 1; i >= legs; i--) {
-                    s.get(i).interrupt();
-                    s.remove(i);
+                    step.get(i).interrupt();
+                    step.remove(i);
                 }
             }
             this.legs = legs;
-            legSetFlag.set(false);
+            legsChangeFlag.set(false);
             try {
+                //TODO
                 //timeout for proper step threads interruption, may be changed to check loop before leaving sync block
                 Thread.sleep(20);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
             notify();
-            System.out.println("Setter released the lock");
+            System.out.println("LegSetter released the lock");
         }
     }
 
-    void startMoving() {
+    public void interrupt() {
+        isInterrupted = true;
+    }
+
+    public void run() {
 
         for (int i = 0; i < legs; i++) {
-            s.get(i).setDaemon(true);
-            s.get(i).start();
+            step.get(i).setDaemon(true);
+            step.get(i).start();
         }
 
         synchronized (this) {
-            while (distance > 0) {
+            while (distance > 0 && !isInterrupted) {
                 for (int i = 0; i < legs; i++) {
-                    synchronized (s.get(i)) {
-                        condition.get(i).set(true);
-                        s.get(i).notify();
-                        while (condition.get(i).get()) {
+                    synchronized (step.get(i)) {
+                        stepFlag.get(i).set(true);
+                        step.get(i).notify();
+                        while (stepFlag.get(i).get() && !isInterrupted) {
                             try {
-                                s.get(i).wait();
+                                step.get(i).wait();
                             } catch (InterruptedException e) {
+                                System.out.println(e);
                             }
                         }
-                        if (distance <= 0) break;
+                        if (distance <= 0 || isInterrupted) break;
                     }
-                    if (legSetFlag.get()) try {
+                    if (legsChangeFlag.get()) try {
                         wait();
                     } catch (InterruptedException e) {
+                        System.out.println(e);
                     }
                 }
             }
-        }
-    }
-
-    void write(String s) {
-
-        //TODO freezes when increasing legs number
-        try (FileWriter writer = new FileWriter("out.txt", true)) {
-            writer.write(s);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    void cleanFile() {
-        try (PrintWriter writer = new PrintWriter(
-                new FileWriter("out.txt"))) {
-            writer.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
@@ -128,22 +115,24 @@ public class Robot2 implements IRobot {
 
         @Override
         public void run() {
-            while (true) {
-                while (condition.get(legNumber).get()) {
+            while (!isInterrupted) {
+                while (stepFlag.get(legNumber).get()) {
                     synchronized (this) {
                         distance -= (Math.random() + 0.5);
                         stepCounter++;
-                        condition.get(legNumber).set(false);
-                        String s = "Robot moved with leg " + (legNumber + 1) + ", step " + stepCounter + ", distance is: " + distance + "\n";
+                        stepFlag.get(legNumber).set(false);
+                        DecimalFormat f = new DecimalFormat("#0.00");
+                        String s = "Robot moved with leg " + (legNumber + 1) + ", step " + stepCounter + ", distance is: " + f.format(distance) + "\n";
+                        GUI.appendText(s);
                         System.out.print(s);
-                        write(s);
                         notify();
-                        while (!condition.get(legNumber).get()) {
+                        while (!stepFlag.get(legNumber).get()) {
                             try {
-                                sleep(1000);
+                                sleep(600);
                                 wait();
                             } catch (InterruptedException e) {
                                 System.out.println("Leg task " + (legNumber + 1) + " cancelled");
+//                                break;
                             }
                         }
                     }
