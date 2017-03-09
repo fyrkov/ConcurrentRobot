@@ -6,7 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Wait()-Notify() implementation
+/**
+ * Wait()-Notify() implementation
  * Created by anch0317 on 03.03.2017.
  */
 
@@ -32,10 +33,6 @@ public class Robot2 implements IRobot {
         }
     }
 
-    int getStepCounter() {
-        return stepCounter;
-    }
-
     public void setLegs(int legs) {
         legsChangeFlag.set(true);
         synchronized (this) {
@@ -57,13 +54,6 @@ public class Robot2 implements IRobot {
             }
             this.legs = legs;
             legsChangeFlag.set(false);
-            try {
-                //TODO
-                //timeout for proper step threads interruption, may be changed to check loop before leaving sync block
-                Thread.sleep(20);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
             notify();
             System.out.println("LegSetter released the lock");
         }
@@ -103,6 +93,7 @@ public class Robot2 implements IRobot {
                 }
             }
         }
+        GUI.robotIsRunning = false;
     }
 
     class Step extends Thread {
@@ -115,7 +106,7 @@ public class Robot2 implements IRobot {
 
         @Override
         public void run() {
-            while (!isInterrupted) {
+            while (!isInterrupted && !this.isInterrupted()) {
                 while (stepFlag.get(legNumber).get()) {
                     synchronized (this) {
                         distance -= (Math.random() + 0.5);
@@ -132,12 +123,14 @@ public class Robot2 implements IRobot {
                                 wait();
                             } catch (InterruptedException e) {
                                 System.out.println("Leg task " + (legNumber + 1) + " cancelled");
-//                                break;
+                                interrupt();
+                                break;
                             }
                         }
                     }
                 }
             }
+            System.out.println("Leg task " + (legNumber + 1) + " cancelled");
         }
     }
 }

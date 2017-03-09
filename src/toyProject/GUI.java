@@ -6,14 +6,10 @@ package toyProject;
 
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.event.ActionEvent;
-import javafx.event.Event;
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
@@ -22,12 +18,12 @@ import java.text.ParseException;
 
 public class GUI extends Application {
 
-    static TextArea ta;
+    private static TextArea textArea;
     static volatile boolean robotIsRunning;
     private static Spinner<Integer> legsSpinner;
     private static Spinner<Double> ditanceSpinner;
-    private static IRobot r;
-    private static Thread t;
+    private static IRobot robot;
+    private static Thread robotThread;
     private static int legsQuantity = 3;
     private static double distance = 14.1;
 
@@ -42,35 +38,33 @@ public class GUI extends Application {
         //Start button
         final Button btnStart = new Button("Start");
         btnStart.setMinWidth(280);
-        btnStart.setOnMouseClicked(new EventHandler<Event>() {
-
-            @Override
-            public void handle(Event event) {
-                btnStart.setDisable(true);
-                if (t == null || !t.isAlive()) {
-                    appendText("");
-                    parseParams();
-                    r = new Robot2(legsQuantity, distance);
-                    t = new Thread(r);
-                    t.setDaemon(true);
-                    t.start();
-                    ta.positionCaret(ta.getText().length() - 1);
-                } else {
-                    r.interrupt();
-                    appendText("Robot is interrupted \n");
-                }
-                btnStart.setDisable(false);
+        btnStart.setOnMouseClicked(event -> {
+            btnStart.setDisable(true);
+            if (robotThread == null || !robotThread.isAlive()) {
+                appendText("");
+                parseParams();
+                robot = new Robot(legsQuantity, distance);
+                robotThread = new Thread(robot);
+                robotThread.setDaemon(true);
+                robotThread.start();
+//                btnStart.setText("Stop");
+                textArea.positionCaret(textArea.getText().length() - 1);
+            } else {
+                robot.interrupt();
+                appendText("Robot is interrupted \n");
+//                btnStart.setText("Start");
             }
+            btnStart.setDisable(false);
         });
 
 
         //Pane an TextArea
         StackPane root = new StackPane();
         root.setPadding(new Insets(10.0));
-        ta = new TextArea();
-        ta.setEditable(false);
-        root.getChildren().add(ta);
-        StackPane.setMargin(ta, new Insets(30.0, 0.0, 30.0, 0.0));
+        textArea = new TextArea();
+        textArea.setEditable(false);
+        root.getChildren().add(textArea);
+        StackPane.setMargin(textArea, new Insets(30.0, 0.0, 30.0, 0.0));
         root.getChildren().add(btnStart);
         StackPane.setAlignment(btnStart, Pos.BOTTOM_CENTER);
 
@@ -101,8 +95,8 @@ public class GUI extends Application {
         btnSubmit.setOnMouseClicked(event -> {
             parseParams();
             appendText("Params set: distance=" + distance + ", legs=" + legsQuantity + "\n");
-            if (r!=null) {
-                r.setLegs(legsQuantity);
+            if (robot !=null) {
+                robot.setLegs(legsQuantity);
             }
         });
         root.getChildren().add(btnSubmit);
@@ -121,11 +115,12 @@ public class GUI extends Application {
             distance = nf.parse(ditanceSpinner.getEditor().getText()).doubleValue();
         } catch (ParseException e) {
             e.printStackTrace();
+            ditanceSpinner.getEditor().setText(Double.valueOf(distance).toString());
         }
     }
 
     static synchronized void appendText(String s) {
-        if (s.equals("")) ta.setText("");
-        else Platform.runLater( () -> ta.appendText(s));
+        if (s.equals("")) textArea.setText("");
+        else Platform.runLater( () -> textArea.appendText(s));
     }
 }
