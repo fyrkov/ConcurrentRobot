@@ -2,35 +2,28 @@ package toyProject;
 
 
 import java.text.DecimalFormat;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
+ * Simple Join() implementation
  * Created by anch0317 on 03.03.2017.
  */
+//TODO cleanup
 public class Robot3 implements IRobot {
 
-    List<Step> list = new LinkedList<>();
-    volatile Lock lock = new ReentrantLock();
-    AtomicInteger stepOrder = new AtomicInteger();
-    AtomicBoolean stepDone = new AtomicBoolean(true);
     private volatile double distance;
     private AtomicInteger stepCounter;
     private volatile int legs;
     private volatile boolean isInterrupted;
+    SenseBarrier b;
 
     public Robot3(int legsQuantity, double distance) {
         legs = legsQuantity;
         this.distance = distance;
-        stepCounter = new AtomicInteger();
-        for (int i = 0; i < legs; i++) {
-            list.add(new Step(i));
-        }
+        stepCounter = new AtomicInteger(0);
+        GUI.robotIsRunning(true);
+        b = new SenseBarrier(legs);
     }
 
     public void setLegs(int legs) {
@@ -43,65 +36,95 @@ public class Robot3 implements IRobot {
 
     public void run() {
 
-        list.forEach(s -> {
-            s.setDaemon(true);
-            s.start();
-        });
 
-        while (distance > 0 && !isInterrupted) {
+
+        for (int i = 0; i < legs; i++) {
+            Step s = new Step(i);
+            s.setDaemon(true);
+//            b.await();
+            s.start();
+            if (distance <= 0 || isInterrupted) break;
+        }
+
+        /*while (distance > 0 && !isInterrupted) {
             for (int i = 0; i < legs; i++) {
-                lock.lock();
-                System.out.println("main has the lock");
-                stepDone.set(false);
-                stepOrder.set(i);
-                System.out.println("order set to i = "+i);
-                lock.unlock();
-                System.out.println("main release the lock");
-                while (!stepDone.get()) {
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                Step s = new Step(i);
+                s.setDaemon(true);
+                s.start();
+                try {
+                    s.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-                stepDone.set(true);
+                if (distance <= 0 || isInterrupted) break;
             }
         }
+        GUI.robotIsRunning(false);*/
     }
 
 
     class Step extends Thread {
 
+        private final int legNumber;
         int stepNumber;
-        private int legNumber;
 
         Step(int legNumber) {
             this.legNumber = legNumber;
         }
 
-        @Override
         public void run() {
+
             while (true) {
-                if (stepOrder.get() == legNumber && !stepDone.get()) {
-                    System.out.println("thread " + legNumber +" flied through if, params are "+stepOrder.get()+" "+!stepDone.get());
-                    lock.lock();
-                    System.out.println("thread " + legNumber +" has the lock");
-                    distance -= (Math.random() + 0.5);
-                    stepNumber = stepCounter.incrementAndGet();
-                    DecimalFormat f = new DecimalFormat("#0.00");
-                    String s = "Robot moved with leg " + legNumber + ", step " + stepNumber + ", distance is: " + f.format(distance) + "\n";
-//                GUI.appendText(s);
-                    System.out.print(s);
-                    try {
-                        sleep(800);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-//                    stepDone.set(true);
-                    lock.unlock();
-                    System.out.println("thread " + legNumber +" released the lock");
+
+                //barrier
+                b.await();
+
+                //work phase
+                distance -= (Math.random() + 0.5);
+                stepNumber = stepCounter.incrementAndGet();
+                DecimalFormat f = new DecimalFormat("#0.00");
+                String s = "Robot moved with leg " + (legNumber + 1) + ", step " + stepNumber + ", distance is: " + f.format(distance) + "\n";
+                GUI.appendText(s);
+                System.out.print(s);
+                try {
+                    sleep(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
+
+        }
+    }
+
+    //sense-reversing barrier
+    class SenseBarrier {
+        private AtomicInteger count;
+        private int size;
+        private volatile boolean sense;
+        ThreadLocal<Boolean> threadSense;
+
+        public SenseBarrier(int n) {
+            count = new AtomicInteger(n);
+            size = n;
+            sense = false;
+            threadSense = new ThreadLocal<Boolean>() {
+                protected Boolean initialValue() {
+                    return !sense;
+                }
+            };
+        }
+
+        void await() {
+            boolean mySense = threadSense.get();
+            int position = count.getAndDecrement();
+            if (position == 1) {
+                count.set(size);
+                sense = mySense;
+            } else {
+                while (sense != mySense) {
+                }
+            }
+            threadSense.set(!mySense);
         }
     }
 

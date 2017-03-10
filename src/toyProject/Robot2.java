@@ -22,7 +22,7 @@ public class Robot2 implements IRobot {
     private volatile boolean isInterrupted;
 
     public Robot2(int legsQuantity, double distance) {
-        GUI.robotIsRunning = true;
+        GUI.robotIsRunning(true);
         legs = legsQuantity;
         this.distance = distance;
         stepFlag = new ArrayList<>();
@@ -36,7 +36,7 @@ public class Robot2 implements IRobot {
     public void setLegs(int legs) {
         legsChangeFlag.set(true);
         synchronized (this) {
-            System.out.println("LegSetter works");
+            System.out.println("LegSetter has the lock");
             int delta = legs - this.legs;
             if (delta > 0) {
                 for (int i = this.legs; i < legs; i++) {
@@ -93,12 +93,12 @@ public class Robot2 implements IRobot {
                 }
             }
         }
-        GUI.robotIsRunning = false;
+        GUI.robotIsRunning(false);
     }
 
     class Step extends Thread {
 
-        private int legNumber;
+        private final int legNumber;
 
         Step(int legNumber) {
             this.legNumber = legNumber;

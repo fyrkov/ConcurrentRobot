@@ -20,7 +20,7 @@ public class Robot implements IRobot {
         legs = legsQuantity;
         this.distance = distance;
         stepCounter = new AtomicInteger(0);
-        GUI.robotIsRunning = true;
+        GUI.robotIsRunning(true);
     }
 
     public void setLegs(int legs) {
@@ -46,13 +46,13 @@ public class Robot implements IRobot {
                 if (distance <= 0 || isInterrupted) break;
             }
         }
-        GUI.robotIsRunning = false;
+        GUI.robotIsRunning(false);
     }
 
 
     class Step extends Thread {
 
-        private int legNumber;
+        private final int legNumber;
         int stepNumber;
 
         Step(int legNumber) {
