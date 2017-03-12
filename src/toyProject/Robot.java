@@ -23,7 +23,7 @@ public class Robot implements IRobot {
         GUI.robotIsRunning(true);
     }
 
-    public void setLegs(int legs) {
+    public void setParams(int legs, double distance) {
         this.legs = legs;
     }
 

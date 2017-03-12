@@ -2,71 +2,97 @@ package toyProject;
 
 
 import java.text.DecimalFormat;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.IntStream;
 
 /**
- * Simple Join() implementation
+ * Barrier implementation
  * Created by anch0317 on 03.03.2017.
  */
-//TODO cleanup
 public class Robot3 implements IRobot {
 
+    private final Barrier barrier;
+    private final List<Thread> steps;
     private volatile double distance;
     private AtomicInteger stepCounter;
     private volatile int legs;
-    private volatile boolean isInterrupted;
-    SenseBarrier b;
+    private volatile boolean isGlobalInterrupted;
 
-    public Robot3(int legsQuantity, double distance) {
-        legs = legsQuantity;
+    public Robot3(int legs, double distance) {
+        this.legs = legs;
+        steps = new ArrayList<>();
         this.distance = distance;
         stepCounter = new AtomicInteger(0);
+        barrier = new Barrier(this.legs);
         GUI.robotIsRunning(true);
-        b = new SenseBarrier(legs);
     }
 
-    public void setLegs(int legs) {
-        this.legs = legs;
+    public void setParams(int legs, double distance) {
+
+        barrier.lock.lock();
+        final int delta = legs - this.legs;
+        if (delta > 0) {
+            barrier.setSize(legs);
+            for (int i = this.legs; i < legs; i++) {
+                steps.add(i, new Step(i));
+                steps.get(i).setDaemon(true);
+                steps.get(i).start();
+            }
+            this.legs = legs;
+        } else if (delta < 0) {
+            killLastThreads(-delta);
+            this.legs = legs;
+            barrier.setSize(legs);
+        }
+//        this.distance = distance;
+        barrier.lock.unlock();
+    }
+
+    private void killLastThreads(int n) {
+        for (int i = legs - 1; i >= legs - n; i--) {
+            steps.get(i).interrupt();
+        }
+        while (true) {
+            boolean b = true;
+            for (int i = legs - 1; i >= legs - n; i--) {
+                if (steps.get(i).isAlive()) b = false;
+            }
+            if (b) break;
+        }
+        System.out.println(n + " last threads killed");
     }
 
     public void interrupt() {
-        isInterrupted = true;
+        killLastThreads(legs);
+        isGlobalInterrupted = true;
     }
 
     public void run() {
 
-
-
-        for (int i = 0; i < legs; i++) {
+        IntStream.range(0, legs).forEach(i -> {
             Step s = new Step(i);
+            steps.add(s);
             s.setDaemon(true);
-//            b.await();
             s.start();
-            if (distance <= 0 || isInterrupted) break;
-        }
+        });
 
-        /*while (distance > 0 && !isInterrupted) {
-            for (int i = 0; i < legs; i++) {
-                Step s = new Step(i);
-                s.setDaemon(true);
-                s.start();
-                try {
-                    s.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                if (distance <= 0 || isInterrupted) break;
+        while (distance > 0 && !isGlobalInterrupted) {
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                System.out.println(e);
             }
         }
-        GUI.robotIsRunning(false);*/
-    }
 
+        GUI.robotIsRunning(false);
+    }
 
     class Step extends Thread {
 
         private final int legNumber;
-        int stepNumber;
 
         Step(int legNumber) {
             this.legNumber = legNumber;
@@ -74,14 +100,21 @@ public class Robot3 implements IRobot {
 
         public void run() {
 
-            while (true) {
+            while (!(isInterrupted() && isGlobalInterrupted)) {
 
                 //barrier
-                b.await();
+                barrier.await(legNumber);
 
                 //work phase
+                if (distance <= 0 || isGlobalInterrupted || isInterrupted()) break;
+                try {
+                    barrier.lock.lockInterruptibly();
+                } catch (InterruptedException e) {
+                    break;
+                }
+                barrier.advance();
                 distance -= (Math.random() + 0.5);
-                stepNumber = stepCounter.incrementAndGet();
+                int stepNumber = stepCounter.incrementAndGet();
                 DecimalFormat f = new DecimalFormat("#0.00");
                 String s = "Robot moved with leg " + (legNumber + 1) + ", step " + stepNumber + ", distance is: " + f.format(distance) + "\n";
                 GUI.appendText(s);
@@ -89,42 +122,49 @@ public class Robot3 implements IRobot {
                 try {
                     sleep(500);
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    interrupt();
                 }
+                barrier.lock.unlock();
             }
-
         }
     }
 
-    //sense-reversing barrier
-    class SenseBarrier {
-        private AtomicInteger count;
-        private int size;
-        private volatile boolean sense;
-        ThreadLocal<Boolean> threadSense;
+    //cycle barrier
+    class Barrier {
 
-        public SenseBarrier(int n) {
-            count = new AtomicInteger(n);
-            size = n;
-            sense = false;
-            threadSense = new ThreadLocal<Boolean>() {
-                protected Boolean initialValue() {
-                    return !sense;
-                }
-            };
+        final ReentrantLock lock = new ReentrantLock();
+        private AtomicInteger phaseCount;
+        private int size;
+
+        Barrier(int n) {
+            phaseCount = new AtomicInteger(0);
+            size = n - 1;
         }
 
-        void await() {
-            boolean mySense = threadSense.get();
-            int position = count.getAndDecrement();
-            if (position == 1) {
-                count.set(size);
-                sense = mySense;
-            } else {
-                while (sense != mySense) {
+        void setSize(int n) {
+            this.size = n - 1;
+            if (phaseCount.get() >= size) {
+                System.out.println("PhaseCount reset");
+                phaseCount.set(0);
+            }
+        }
+
+        void await(int legNumber) {
+            while ((phaseCount.get() != legNumber || lock.hasQueuedThreads()) && !Thread.currentThread().isInterrupted()) {
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
                 }
             }
-            threadSense.set(!mySense);
+        }
+
+        void advance() {
+            int position = phaseCount.getAndIncrement();
+            if (position == size) {
+                phaseCount.set(0);
+            }
         }
     }
 

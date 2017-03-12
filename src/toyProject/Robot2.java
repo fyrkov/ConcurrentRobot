@@ -19,7 +19,7 @@ public class Robot2 implements IRobot {
     private volatile int legs;
     private volatile List<Thread> step;
     private AtomicBoolean legsChangeFlag = new AtomicBoolean();
-    private volatile boolean isInterrupted;
+    private volatile boolean isGlobalInterrupted;
 
     public Robot2(int legsQuantity, double distance) {
         GUI.robotIsRunning(true);
@@ -33,7 +33,7 @@ public class Robot2 implements IRobot {
         }
     }
 
-    public void setLegs(int legs) {
+    public void setParams(int legs, double distance) {
         legsChangeFlag.set(true);
         synchronized (this) {
             System.out.println("LegSetter has the lock");
@@ -60,7 +60,7 @@ public class Robot2 implements IRobot {
     }
 
     public void interrupt() {
-        isInterrupted = true;
+        isGlobalInterrupted = true;
     }
 
     public void run() {
@@ -71,19 +71,19 @@ public class Robot2 implements IRobot {
         }
 
         synchronized (this) {
-            while (distance > 0 && !isInterrupted) {
+            while (distance > 0 && !isGlobalInterrupted) {
                 for (int i = 0; i < legs; i++) {
                     synchronized (step.get(i)) {
                         stepFlag.get(i).set(true);
                         step.get(i).notify();
-                        while (stepFlag.get(i).get() && !isInterrupted) {
+                        while (stepFlag.get(i).get() && !isGlobalInterrupted) {
                             try {
                                 step.get(i).wait();
                             } catch (InterruptedException e) {
                                 System.out.println(e);
                             }
                         }
-                        if (distance <= 0 || isInterrupted) break;
+                        if (distance <= 0 || isGlobalInterrupted) break;
                     }
                     if (legsChangeFlag.get()) try {
                         wait();
@@ -106,7 +106,7 @@ public class Robot2 implements IRobot {
 
         @Override
         public void run() {
-            while (!isInterrupted && !this.isInterrupted()) {
+            while (!isGlobalInterrupted && !this.isInterrupted()) {
                 while (stepFlag.get(legNumber).get()) {
                     synchronized (this) {
                         distance -= (Math.random() + 0.5);

@@ -10,11 +10,8 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
-
-import java.text.NumberFormat;
-import java.text.ParseException;
 
 public class GUI extends Application {
 
@@ -31,13 +28,50 @@ public class GUI extends Application {
         launch(args);
     }
 
+    static synchronized boolean parseParams() {
+        boolean result = false;
+        String s = distanceSpinner.getEditor().getText();
+        if (s.matches("\\d+([.,]\\d+)?")) {
+            try {
+                if (s.contains(",")) s = s.replace(',', '.');
+                distance = Double.valueOf(s);
+                result = true;
+            } catch (NumberFormatException e) {
+                e.printStackTrace();
+                appendText("Incorrect distance input \n");
+            }
+        } else {
+            appendText("Incorrect distance input \n");
+            distanceSpinner.getEditor().setText(Double.valueOf(distance).toString());
+        }
+        String s2 = legsSpinner.getEditor().getText();
+        if (s2.matches("\\d+$")) {
+            legsQuantity = Integer.valueOf(s2);
+            result = true;
+        } else {
+            appendText("Incorrect legs input \n");
+            legsSpinner.getEditor().setText(Integer.valueOf(legsQuantity).toString());
+        }
+        return result;
+    }
+
+    static synchronized void appendText(String s) {
+        if (s.equals("")) textArea.setText("");
+        else Platform.runLater(() -> textArea.appendText(s));
+    }
+
+    static void robotIsRunning(boolean b) {
+        if (b) Platform.runLater(() -> btnStart.setText("Stop"));
+        else Platform.runLater(() -> btnStart.setText("Start"));
+    }
+
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("ConcurrentRobot");
 
         //Start button
         btnStart = new Button("Start");
-        btnStart.setMinWidth(290);
+        btnStart.setMinWidth(300);
         btnStart.setOnMouseClicked(event -> {
             btnStart.setDisable(true);
             if (robotThread == null || !robotThread.isAlive()) {
@@ -69,12 +103,12 @@ public class GUI extends Application {
         distanceSpinner = new Spinner<>();
         distanceSpinner.setValueFactory(new SpinnerValueFactory.DoubleSpinnerValueFactory(1, 100, distance));
         root.getChildren().add(distanceSpinner);
-        distanceSpinner.setMaxWidth(75);
+        distanceSpinner.setMaxWidth(80);
         StackPane.setMargin(distanceSpinner, new Insets(0.0, 110, 460.0, 0.0));
         distanceSpinner.setEditable(true);
-        Label textFieldLabel = new Label("Distance:");
-        root.getChildren().add(textFieldLabel);
-        StackPane.setAlignment(textFieldLabel, Pos.TOP_LEFT);
+        Label distanceLabel = new Label("Distance:");
+        root.getChildren().add(distanceLabel);
+        StackPane.setMargin(distanceLabel, new Insets(0.0, 250, 460.0, 0.0));
 
         //legsSpinner and label
         legsSpinner = new Spinner<>();
@@ -82,58 +116,36 @@ public class GUI extends Application {
         root.getChildren().add(legsSpinner);
         legsSpinner.setMaxWidth(60);
         StackPane.setMargin(legsSpinner, new Insets(0.0, 0, 460.0, 100.0));
-        legsSpinner.setEditable(false);
+        legsSpinner.setEditable(true);
         Label spinnerLabel = new Label("Legs:");
         root.getChildren().add(spinnerLabel);
-        StackPane.setMargin(spinnerLabel, new Insets(0.0, 0, 460.0, 0.0));
+        StackPane.setMargin(spinnerLabel, new Insets(0.0, 0, 460.0, 5));
 
         //submit button
         Button btnSubmit = new Button("Submit");
         btnSubmit.setOnMouseClicked(event -> {
-            if (parseParams()) {
-                appendText("Params set: distance=" + distance + ", legs=" + legsQuantity + "\n");
-            }
-            if (robot != null) {
-                robot.setLegs(legsQuantity);
+//            if (parseParams()) {
+////                appendText("Params set: distance=" + distance + ", legs=" + legsQuantity + "\n");
+////                System.out.println("Params set: distance=" + distance + ", legs=" + legsQuantity + "\n");
+//            }
+            if (robot != null && parseParams()) {
+                robot.setParams(legsQuantity, distance);
+                String s = "Params set: distance=" + distance + ", legs=" + legsQuantity + "\n";
+                GUI.appendText(s);
+                System.out.println(s);
+            } else if (robot == null && parseParams()) {
+                String s = "Params set: distance=" + distance + ", legs=" + legsQuantity + "\n";
+                GUI.appendText(s);
+                System.out.println(s);
             }
         });
         root.getChildren().add(btnSubmit);
-        StackPane.setMargin(btnSubmit, new Insets(0.0, 0, 460.0, 235));
+        StackPane.setMargin(btnSubmit, new Insets(0.0, 0, 460.0, 245));
 
 
         //main window
         primaryStage.setScene(new Scene(root, 310, 500));
         primaryStage.show();
         primaryStage.setResizable(false);
-    }
-
-    static synchronized boolean parseParams() {
-        String s = distanceSpinner.getEditor().getText();
-        if (s.matches("\\d+([.,]\\d+)?")) {
-            try {
-                if (s.contains(",")) s = s.replace(',', '.');
-                distance = Double.valueOf(s);
-                legsQuantity = Integer.valueOf(legsSpinner.getEditor().getText());
-                return true;
-            } catch (NumberFormatException e) {
-                e.printStackTrace();
-                appendText("Incorrect distance input \n");
-                return false;
-            }
-        } else {
-            appendText("Incorrect distance input \n");
-            distanceSpinner.getEditor().setText(Double.valueOf(distance).toString());
-            return false;
-        }
-    }
-
-    static synchronized void appendText(String s) {
-        if (s.equals("")) textArea.setText("");
-        else Platform.runLater(() -> textArea.appendText(s));
-    }
-
-    static void robotIsRunning(boolean b) {
-        if (b) Platform.runLater(() -> btnStart.setText("Stop"));
-        else Platform.runLater(() -> btnStart.setText("Start"));
     }
 }
