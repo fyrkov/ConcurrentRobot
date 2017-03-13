@@ -13,11 +13,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Robot2 implements IRobot {
 
-    private List<AtomicBoolean> stepFlag;
+    private final List<AtomicBoolean> stepFlag;
     private volatile double distance;
     private volatile int stepCounter;
     private volatile int legs;
-    private volatile List<Thread> step;
+    private final List<Thread> step;
     private AtomicBoolean legsChangeFlag = new AtomicBoolean();
     private volatile boolean isGlobalInterrupted;
 
@@ -107,7 +107,7 @@ public class Robot2 implements IRobot {
         @Override
         public void run() {
             while (!isGlobalInterrupted && !this.isInterrupted()) {
-                while (stepFlag.get(legNumber).get()) {
+                while (stepFlag.get(legNumber).get() && !this.isInterrupted()) {
                     synchronized (this) {
                         distance -= (Math.random() + 0.5);
                         stepCounter++;
@@ -119,10 +119,10 @@ public class Robot2 implements IRobot {
                         notify();
                         while (!stepFlag.get(legNumber).get()) {
                             try {
-                                sleep(600);
+                                sleep(500);
                                 wait();
                             } catch (InterruptedException e) {
-                                System.out.println("Leg task " + (legNumber + 1) + " cancelled");
+                                System.out.println("Leg task " + (legNumber + 1) + " interrupted");
                                 interrupt();
                                 break;
                             }
@@ -130,7 +130,7 @@ public class Robot2 implements IRobot {
                     }
                 }
             }
-            System.out.println("Leg task " + (legNumber + 1) + " cancelled");
+            System.out.println("Leg task " + (legNumber + 1) + " finished");
         }
     }
 }

@@ -124,10 +124,6 @@ public class GUI extends Application {
         //submit button
         Button btnSubmit = new Button("Submit");
         btnSubmit.setOnMouseClicked(event -> {
-//            if (parseParams()) {
-////                appendText("Params set: distance=" + distance + ", legs=" + legsQuantity + "\n");
-////                System.out.println("Params set: distance=" + distance + ", legs=" + legsQuantity + "\n");
-//            }
             if (robot != null && parseParams()) {
                 robot.setParams(legsQuantity, distance);
                 String s = "Params set: distance=" + distance + ", legs=" + legsQuantity + "\n";
